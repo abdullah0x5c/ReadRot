@@ -1,14 +1,15 @@
 'use client';
 
 // ==========================================
-// TIKTOK CAPTION STYLE REEL
+// TIKTOK CAPTION STYLE REEL - Puter.js TTS
 // ==========================================
-// Just video + ONE BIG WORD in center - that's it!
+// FREE, UNLIMITED, HIGH-QUALITY text-to-speech!
 
-import { useEffect, useCallback, useState, useRef } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Chunk } from '@/types';
 import { ReelBackground } from './ReelBackground';
+import { usePuterTTS } from '@/hooks/usePuterTTS';
 
 interface ReelProps {
   chunk: Chunk;
@@ -16,7 +17,6 @@ interface ReelProps {
   backgroundId: string;
   chunkIndex: number;
   totalChunks: number;
-  autoPlay?: boolean;
   onComplete?: () => void;
 }
 
@@ -28,151 +28,129 @@ export function Reel({
   totalChunks,
   onComplete,
 }: ReelProps) {
-  const [currentWordIndex, setCurrentWordIndex] = useState(-1);
-  const [isPlaying, setIsPlaying] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   
-  const synthRef = useRef<SpeechSynthesis | null>(null);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  
-  // Progress
   const progress = ((chunkIndex + 1) / totalChunks) * 100;
   
-  // Init speech
-  useEffect(() => {
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      synthRef.current = window.speechSynthesis;
-    }
-  }, []);
+  // Use Puter.js TTS - FREE & HIGH QUALITY
+  const {
+    speak,
+    stop,
+    pause,
+    resume,
+    isPlaying,
+    isPaused,
+    isLoading,
+    currentWordIndex,
+    error,
+    isReady,
+  } = usePuterTTS({
+    engine: 'neural', // 'neural' for quality, 'generative' for most human-like
+    voice: 'Joanna',
+    language: 'en-US',
+    onComplete,
+  });
   
-  // Cleanup
+  // Stop when inactive
   useEffect(() => {
     if (!isActive) {
-      stopSpeaking();
+      stop();
+      setHasStarted(false);
     }
-    return () => stopSpeaking();
-  }, [isActive]);
+  }, [isActive, stop]);
   
-  const stopSpeaking = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-    if (synthRef.current) {
-      synthRef.current.cancel();
-    }
-    setIsPlaying(false);
-    setCurrentWordIndex(-1);
-  }, []);
-  
-  const startSpeaking = useCallback(() => {
-    if (!synthRef.current || !isActive) return;
-    
-    synthRef.current.cancel();
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    
+  const startSpeaking = useCallback(async () => {
+    if (!isActive || !isReady) return;
     setHasStarted(true);
-    
-    const utterance = new SpeechSynthesisUtterance(chunk.text);
-    utterance.rate = 0.9;
-    utterance.pitch = 1.0;
-    utterance.volume = 1.0;
-    
-    // Get a good voice
-    const voices = synthRef.current.getVoices();
-    const voice = voices.find(v => v.lang.startsWith('en') && v.name.includes('Google'))
-      || voices.find(v => v.lang.startsWith('en'))
-      || voices[0];
-    if (voice) utterance.voice = voice;
-    
-    // Word timing
-    const msPerWord = 400; // ~2.5 words per second
-    
-    utterance.onstart = () => {
-      setIsPlaying(true);
-      setCurrentWordIndex(0);
-      
-      let idx = 0;
-      intervalRef.current = setInterval(() => {
-        idx++;
-        if (idx < chunk.words.length) {
-          setCurrentWordIndex(idx);
-        }
-      }, msPerWord);
-    };
-    
-    utterance.onend = () => {
-      setIsPlaying(false);
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      setCurrentWordIndex(-1);
-      onComplete?.();
-    };
-    
-    utterance.onerror = () => {
-      setIsPlaying(false);
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-    
-    utterance.onboundary = (e) => {
-      if (e.name === 'word') {
-        let chars = 0;
-        for (let i = 0; i < chunk.words.length; i++) {
-          if (e.charIndex <= chars) {
-            setCurrentWordIndex(Math.max(0, i));
-            break;
-          }
-          chars += chunk.words[i].length + 1;
-        }
-      }
-    };
-    
-    synthRef.current.speak(utterance);
-  }, [chunk.text, chunk.words, isActive, onComplete]);
+    await speak(chunk.text, chunk.words);
+  }, [isActive, isReady, chunk.text, chunk.words, speak]);
   
   const handleTap = useCallback(() => {
-    if (!hasStarted && isActive) {
+    if (isLoading) return;
+    
+    if (!hasStarted) {
       startSpeaking();
-    } else if (isPlaying) {
-      synthRef.current?.pause();
-      setIsPlaying(false);
-    } else if (synthRef.current?.paused) {
-      synthRef.current?.resume();
-      setIsPlaying(true);
+    } else if (isPlaying && !isPaused) {
+      pause();
+    } else if (isPaused) {
+      resume();
     } else {
       startSpeaking();
     }
-  }, [hasStarted, isActive, isPlaying, startSpeaking]);
+  }, [hasStarted, isPlaying, isPaused, isLoading, startSpeaking, pause, resume]);
   
-  // Current word - clean it up
   const currentWord = currentWordIndex >= 0 && currentWordIndex < chunk.words.length
-    ? chunk.words[currentWordIndex].replace(/[.,!?;:'"()\-\[\]]/g, '').toLowerCase()
+    ? chunk.words[currentWordIndex].replace(/[.,!?;:'"()\-\[\]""'']/g, '')
     : '';
-  
+
   return (
     <div className="reel relative w-full overflow-hidden bg-black" onClick={handleTap}>
-      {/* Full screen video */}
       <ReelBackground backgroundId={backgroundId} isActive={isActive} />
       
-      {/* THE ONE BIG WORD - Center of screen */}
       <div className="absolute inset-0 flex items-center justify-center z-20">
         <AnimatePresence mode="wait">
-          {currentWord && isPlaying ? (
+          {isLoading ? (
+            <motion.div
+              key="loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="text-center"
+            >
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                className="w-12 h-12 border-3 border-white/20 border-t-white rounded-full mx-auto mb-4"
+              />
+              <p className="text-white/70 text-sm">Generating voice...</p>
+            </motion.div>
+          ) : error ? (
+            <motion.div
+              key="error"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="text-center px-6"
+            >
+              <div className="text-4xl mb-3">⚠️</div>
+              <p className="text-white/90 font-semibold mb-1">Error</p>
+              <p className="text-white/60 text-sm max-w-xs">{error}</p>
+              <p className="text-white/40 text-xs mt-3">Tap to retry</p>
+            </motion.div>
+          ) : currentWord && isPlaying && !isPaused ? (
             <motion.span
-              key={currentWord + currentWordIndex}
-              initial={{ opacity: 0, scale: 0.8, y: 20 }}
+              key={`word-${currentWordIndex}`}
+              initial={{ opacity: 0, scale: 0.5, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.8, y: -20 }}
-              transition={{ duration: 0.15 }}
-              className="text-white text-6xl sm:text-7xl md:text-8xl font-black text-center px-4"
+              transition={{ duration: 0.12, ease: 'easeOut' }}
+              className="text-white text-5xl sm:text-6xl md:text-7xl font-black text-center px-4 uppercase"
               style={{
-                textShadow: '0 4px 20px rgba(0,0,0,0.8), 0 2px 4px rgba(0,0,0,0.9)',
-                fontFamily: 'system-ui, -apple-system, sans-serif',
+                textShadow: `
+                  0 0 30px rgba(0,0,0,0.9),
+                  0 4px 20px rgba(0,0,0,0.8),
+                  2px 2px 0 rgba(0,0,0,0.9),
+                  -2px -2px 0 rgba(0,0,0,0.9)
+                `,
               }}
             >
               {currentWord}
             </motion.span>
+          ) : isPaused ? (
+            <motion.div
+              key="paused"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="text-center"
+            >
+              <div className="text-5xl mb-3">▶️</div>
+              <p className="text-white text-lg font-bold">PAUSED</p>
+              <p className="text-white/60 text-sm mt-1">Tap to continue</p>
+            </motion.div>
           ) : !hasStarted && isActive ? (
             <motion.div
+              key="start"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -181,18 +159,32 @@ export function Reel({
               <motion.div
                 animate={{ scale: [1, 1.1, 1] }}
                 transition={{ repeat: Infinity, duration: 1 }}
-                className="text-6xl mb-4"
+                className="text-5xl mb-3"
               >
                 👆
               </motion.div>
-              <p className="text-white text-xl font-bold">TAP TO START</p>
-              <p className="text-white/60 text-sm mt-2">🔊 Turn sound ON</p>
+              <p className="text-white text-lg font-bold">TAP TO START</p>
+              <p className="text-white/60 text-sm mt-1">
+                {isReady ? '🎙️ AI Voice Ready' : '⏳ Loading...'}
+              </p>
             </motion.div>
           ) : null}
         </AnimatePresence>
       </div>
       
-      {/* Minimal bottom progress bar */}
+      {/* Playing indicator */}
+      {isPlaying && !isPaused && (
+        <div className="absolute top-4 right-4 z-30 flex items-center gap-2 px-3 py-1.5 bg-black/40 backdrop-blur-sm rounded-full">
+          <motion.div
+            animate={{ scale: [1, 1.3, 1] }}
+            transition={{ repeat: Infinity, duration: 0.5 }}
+            className="w-2 h-2 bg-green-400 rounded-full"
+          />
+          <span className="text-white/80 text-xs font-medium">AI VOICE</span>
+        </div>
+      )}
+      
+      {/* Progress */}
       <div className="absolute bottom-8 left-4 right-4 z-30">
         <div className="h-1 bg-white/20 rounded-full overflow-hidden">
           <div 

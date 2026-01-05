@@ -20,9 +20,32 @@ export interface Chunk {
 export interface BookSettings {
   backgroundId: string;          // Which background video to use
   musicId?: string;              // Optional background music track
-  ttsVoice?: string;             // Selected TTS voice name
+  ttsVoice?: string;             // Selected TTS voice name (legacy Web Speech API)
+  ttsVoiceId?: string;           // ElevenLabs voice ID
   ttsSpeed: number;              // Speech rate: 0.5 - 2.0
   wordsPerChunk: number;         // Target words per chunk (default: 30-50)
+}
+
+/**
+ * ElevenLabs voice information
+ */
+export interface ElevenLabsVoice {
+  id: string;                    // Voice ID from ElevenLabs
+  name: string;                  // Display name
+  category: string;              // Voice category (premade, cloned, etc.)
+  accent?: string;               // Voice accent (American, British, etc.)
+  gender?: string;               // Voice gender
+  age?: string;                  // Voice age group
+  previewUrl?: string;           // URL to voice preview audio
+}
+
+/**
+ * Word timing for karaoke-style highlighting
+ */
+export interface WordTiming {
+  word: string;                  // The word text
+  start: number;                 // Start time in milliseconds
+  end: number;                   // End time in milliseconds
 }
 
 /**

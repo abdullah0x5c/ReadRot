@@ -68,6 +68,14 @@ body {
   position: relative;
 }
 
+/* Desktop: constrain reel width for better experience */
+@media (min-width: 1024px) {
+  .reel-container {
+    max-width: 100%;
+    margin: 0 auto;
+  }
+}
+
 /* Glass morphism */
 .glass {
   background: rgba(0, 0, 0, 0.4);

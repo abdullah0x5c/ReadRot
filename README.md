@@ -28,6 +28,10 @@ ReadRot is a web app that converts any text into a vertical scrolling "reel" for
 # Install dependencies
 npm install
 
+# Configure ElevenLabs API (for AI voice narration)
+# Create a .env.local file with your API key:
+echo "ELEVENLABS_API_KEY=your_api_key_here" > .env.local
+
 # Run development server
 npm run dev
 
@@ -36,6 +40,32 @@ npm run build
 ```
 
 Open [http://localhost:3000](http://localhost:3000) to start reading!
+
+## 🎙️ ElevenLabs TTS Setup
+
+ReadRot uses ElevenLabs for high-quality AI voice narration. To enable this feature:
+
+1. **Get an API Key**:
+   - Sign up at [elevenlabs.io](https://elevenlabs.io)
+   - Go to Profile Settings → API Keys
+   - Generate a new API key
+
+2. **Configure the API Key**:
+   Create a `.env.local` file in the project root:
+   ```env
+   ELEVENLABS_API_KEY=your_api_key_here
+   ```
+
+3. **Available Voices**:
+   | Voice | ID | Description |
+   |-------|----|----|
+   | Rachel | `21m00Tcm4TlvDq8ikWAM` | Female, Young, American (Default) |
+   | Adam | `pNInz6obpgDQGcFmaJgB` | Male, Deep, American |
+   | Antoni | `ErXwobaYiN019PkySvjV` | Male, Young, American |
+   | Sarah | `EXAVITQu4vr4xnSDxMaL` | Female, Soft, American |
+   | Daniel | `onwK4e9ZLuTAKqWW03F9` | Male, British |
+
+> **Note**: ElevenLabs has a free tier with limited characters/month. For heavy usage, consider upgrading your plan.
 
 ## 🛠️ Tech Stack
 
@@ -47,7 +77,7 @@ Open [http://localhost:3000](http://localhost:3000) to start reading!
 | Framer Motion | Animations |
 | Zustand | State management |
 | IndexedDB (idb) | Offline storage |
-| Web Speech API | Text-to-speech |
+| ElevenLabs | AI Text-to-speech |
 
 ## 📱 Features
 
@@ -98,7 +128,8 @@ src/
 │       ├── ReelHighlight.tsx
 │       └── ReelControls.tsx
 ├── hooks/
-│   └── useTTS.ts          # Text-to-speech hook
+│   ├── useTTS.ts          # Legacy Web Speech API hook
+│   └── useElevenLabsTTS.ts # ElevenLabs AI voice hook
 ├── lib/
 │   ├── chunker.ts         # Text chunking algorithm
 │   └── db.ts              # IndexedDB operations
@@ -113,8 +144,9 @@ src/
 
 1. **Text Chunking**: Your text is split into ~40-word chunks at sentence boundaries
 2. **Reel Display**: Each chunk becomes a full-screen "reel" you can scroll through
-3. **TTS Sync**: Web Speech API reads aloud while highlighting words
-4. **Progress Save**: Your position is saved automatically to IndexedDB
+3. **AI Voice**: ElevenLabs generates natural speech with word-level timestamps
+4. **Karaoke Sync**: Words highlight in sync with the AI narration
+5. **Progress Save**: Your position is saved automatically to IndexedDB
 
 ## 🤝 Contributing
 
