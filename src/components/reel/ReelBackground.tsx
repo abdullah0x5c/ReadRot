@@ -1,9 +1,8 @@
 'use client';
 
 // ==========================================
-// Reel Background - REAL VIDEO EDITION
+// Full Screen Video Background
 // ==========================================
-// Actual ASMR/satisfying videos for that brain-rot experience
 
 import { useRef, useEffect } from 'react';
 
@@ -12,32 +11,22 @@ interface ReelBackgroundProps {
   isActive: boolean;
 }
 
-/**
- * Video background component
- * Plays looping muted video for that TikTok brain-rot feel
- */
-export function ReelBackground({ backgroundId, isActive }: ReelBackgroundProps) {
+export function ReelBackground({ isActive }: ReelBackgroundProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   
-  // Play/pause based on active state
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
     
     if (isActive) {
-      // Play the video when this reel is active
-      video.play().catch((err) => {
-        console.log('Video autoplay blocked:', err);
-      });
+      video.play().catch(() => {});
     } else {
-      // Pause when not active to save resources
       video.pause();
     }
   }, [isActive]);
   
   return (
-    <div className="absolute inset-0 overflow-hidden bg-black">
-      {/* The actual video */}
+    <div className="absolute inset-0 bg-black">
       <video
         ref={videoRef}
         className="absolute inset-0 w-full h-full object-cover"
@@ -46,19 +35,9 @@ export function ReelBackground({ backgroundId, isActive }: ReelBackgroundProps) 
         muted
         playsInline
         preload="auto"
-        style={{
-          // Slight zoom to hide any edges
-          transform: 'scale(1.05)',
-        }}
       />
-      
-      {/* Dark overlay so text is readable */}
-      <div 
-        className="absolute inset-0"
-        style={{
-          background: 'linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.2) 30%, rgba(0,0,0,0.2) 70%, rgba(0,0,0,0.6) 100%)',
-        }}
-      />
+      {/* Very subtle darkening for text readability */}
+      <div className="absolute inset-0 bg-black/20" />
     </div>
   );
 }
