@@ -6,6 +6,7 @@
 // Scroll-snap container that holds all reels
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Book } from '@/types';
 import { Reel } from './Reel';
 import { useBookStore } from '@/stores/useBookStore';
@@ -17,14 +18,10 @@ interface ReelContainerProps {
 
 /**
  * Main container for the reel experience
- * Handles:
- * - Vertical scroll-snap behavior
- * - Detecting which reel is currently visible
- * - Keyboard navigation (up/down arrows)
- * - Progress saving
  */
 export function ReelContainer({ book, initialChunkIndex = 0 }: ReelContainerProps) {
   const [activeIndex, setActiveIndex] = useState(initialChunkIndex);
+  const [showCelebration, setShowCelebration] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const { updateProgress } = useBookStore();
   
@@ -46,8 +43,13 @@ export function ReelContainer({ book, initialChunkIndex = 0 }: ReelContainerProp
     
     if (newIndex !== activeIndex && newIndex >= 0 && newIndex < book.chunks.length) {
       setActiveIndex(newIndex);
-      // Save progress
       updateProgress(book.id, newIndex);
+      
+      // Show celebration on last chunk
+      if (newIndex === book.chunks.length - 1) {
+        setShowCelebration(true);
+        setTimeout(() => setShowCelebration(false), 3000);
+      }
     }
   }, [activeIndex, book.chunks.length, book.id, updateProgress]);
   
@@ -58,7 +60,7 @@ export function ReelContainer({ book, initialChunkIndex = 0 }: ReelContainerProp
       
       const reelHeight = window.innerHeight;
       
-      if (e.key === 'ArrowDown' || e.key === 'j') {
+      if (e.key === 'ArrowDown' || e.key === 'j' || e.key === ' ') {
         e.preventDefault();
         const nextIndex = Math.min(activeIndex + 1, book.chunks.length - 1);
         containerRef.current.scrollTo({
@@ -85,29 +87,30 @@ export function ReelContainer({ book, initialChunkIndex = 0 }: ReelContainerProp
   }, []);
   
   return (
-    <div className="relative w-full h-screen">
+    <div className="relative w-full h-screen bg-black">
       {/* Back button */}
-      <button
+      <motion.button
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
         onClick={handleBack}
-        className="absolute top-4 left-4 z-50 control-btn"
+        className="absolute top-4 left-4 z-50 w-12 h-12 rounded-full bg-black/50 backdrop-blur-lg border border-white/10 flex items-center justify-center text-white hover:bg-white/10 transition-colors"
         aria-label="Go back"
       >
-        <svg 
-          xmlns="http://www.w3.org/2000/svg" 
-          viewBox="0 0 24 24" 
-          fill="currentColor"
-          className="w-5 h-5"
-        >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
           <path fillRule="evenodd" d="M7.72 12.53a.75.75 0 010-1.06l7.5-7.5a.75.75 0 111.06 1.06L9.31 12l6.97 6.97a.75.75 0 11-1.06 1.06l-7.5-7.5z" clipRule="evenodd" />
         </svg>
-      </button>
+      </motion.button>
       
       {/* Book title */}
-      <div className="absolute top-4 left-16 right-16 z-40 text-center">
-        <h1 className="text-sm font-medium text-[var(--text-secondary)] truncate">
+      <motion.div 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="absolute top-4 left-20 right-4 z-40"
+      >
+        <h1 className="text-sm font-medium text-white/60 truncate">
           {book.title}
         </h1>
-      </div>
+      </motion.div>
       
       {/* Scrollable reel container */}
       <div
@@ -128,23 +131,46 @@ export function ReelContainer({ book, initialChunkIndex = 0 }: ReelContainerProp
         ))}
       </div>
       
-      {/* Scroll hint for first-time users */}
-      {activeIndex === 0 && (
-        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-40 animate-bounce">
-          <div className="text-[var(--text-muted)] text-xs flex flex-col items-center gap-1">
-            <svg 
-              xmlns="http://www.w3.org/2000/svg" 
-              viewBox="0 0 24 24" 
-              fill="currentColor"
-              className="w-5 h-5"
+      {/* Side progress indicator */}
+      <div className="absolute right-3 top-1/2 -translate-y-1/2 z-40 flex flex-col gap-1">
+        {book.chunks.map((_, index) => (
+          <motion.div
+            key={index}
+            className={`w-1 rounded-full transition-all duration-300 ${
+              index === activeIndex 
+                ? 'h-6 bg-gradient-to-b from-[#ff3366] to-[#ffcc00]' 
+                : index < activeIndex
+                ? 'h-2 bg-white/40'
+                : 'h-2 bg-white/20'
+            }`}
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: index * 0.05 }}
+          />
+        ))}
+      </div>
+      
+      {/* Completion celebration */}
+      <AnimatePresence>
+        {showCelebration && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none"
+          >
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: [0, 1.2, 1] }}
+              className="text-center"
             >
-              <path fillRule="evenodd" d="M12.53 16.28a.75.75 0 01-1.06 0l-7.5-7.5a.75.75 0 011.06-1.06L12 14.69l6.97-6.97a.75.75 0 111.06 1.06l-7.5 7.5z" clipRule="evenodd" />
-            </svg>
-            <span>Scroll to continue</span>
-          </div>
-        </div>
-      )}
+              <div className="text-8xl mb-4">🎉</div>
+              <h2 className="text-3xl font-bold text-white mb-2">Finished!</h2>
+              <p className="text-white/60">You completed the book!</p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
-
